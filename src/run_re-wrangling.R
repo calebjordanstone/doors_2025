@@ -55,7 +55,7 @@ avg_flex_ss[, ses := ifelse(ses==2, 'training', 'testing')]
 # reshape data frame
 avg_flex_wide_train <- dcast.data.table(avg_flex_ss, 
                                         sub + ses + train_type ~ subses, 
-                                        value.var = c('setting_errors_mean', 'general_errors_mean'), 
+                                        value.var = c('setting_errors_mean', 'general_errors_mean', 'rt_subs_correct_mean'), 
                                         subset = .(ses=='training' & switch=='non-switch'),
                                         fun.aggregate=mean) # long to wide for training session
 avg_flex_wide_test <- dcast.data.table(avg_flex, 
@@ -77,7 +77,7 @@ setnames(avg_flex_wide, "sub", "subID")
 # avg_flex_wide <- avg_flex_wide[, .SD, .SDcols = patterns(cols)]
 
 # save output file
-fln <- file.path("res", paste(paste(exp, "avg-wide", sep = "_"), ".csv", sep = ""))
+fln <- file.path("res", paste(paste(exp, "avg-wide_v2", sep = "_"), ".csv", sep = ""))
 write_csv(avg_flex_wide, fln)
 
 
@@ -97,7 +97,6 @@ avg_multi[, ses := ifelse(ses==2, 'training', 'testing')]
 mts_multi <- mts_multi[unique(avg_multi[, .(sub, train_type)]), on='sub']
 mts_multi[, cond := ifelse(cond=='nc', 'neither', 'other')]
 mts_multi[, stage := ifelse(stage=='3', 'testing', 'initial')]
-mts_multi[, train_type := ifelse(train_type==1, 'stable', 'variable')]
 setnames(mts_multi, 'stage', 'ses') # rename stage to ses 
 
 # fill in missing data - if no setting errors, replace NaN values with 0 for setting sticks/slips
@@ -109,23 +108,38 @@ avg_multi_train <- dcast.data.table(avg_multi,
                                 sub + train_type + ses ~ switch, 
                                 value.var = c('accuracy_mean', 
                                               'setting_errors_mean', 
-                                              'general_errors_mean'), #names(avg_multi)[7:14], 
+                                              'general_errors_mean',
+                                              'rt_first_correct_mean',
+                                              'rt_subs_correct_mean'), #names(avg_multi)[7:14], 
                                 subset = .(ses=='training' & switch=='non-switch')) # long to wide for training session
 
 ## need to complete when variables are decided
 avg_multi_test <- dcast.data.table(avg_multi,
                               sub + train_type + ses ~ multi_cond,
-                              value.var = c('accuracy_mean'),
+                              value.var = c('accuracy_mean', 
+                                            'setting_errors_mean', 
+                                            'general_errors_mean'),
                               subset = .(ses=='testing'),
                               fun.aggregate = mean) # long to wide for test session
-setnames(avg_multi_test, 
-         old=c('neither', 'none', 'other'), 
-         new=c('multi_cond_neither', 'multi_cond_none', 'multi_cond_other'))
+
+
+avg_multi_test_rt <- dcast.data.table(avg_multi,
+                               sub + train_type + ses ~ multi_cond + multi_trial,
+                               value.var = c('rt_first_correct_mean',
+                                             'rt_subs_correct_mean'),
+                               subset = .(ses=='testing'),
+                               fun.aggregate = mean) 
+
+avg_multi_test <- avg_multi_test[avg_multi_test_rt, on=c('sub', 'train_type', 'ses')]
+
+# setnames(avg_multi_test, 
+#          old=c('neither', 'none', 'other'), 
+#          new=c('multi_cond_neither', 'multi_cond_none', 'multi_cond_other'))
 
 avg_multi_wide <- rbindlist(list(avg_multi_train, avg_multi_test), fill=T) # combine into 1 data frame
 
 # save data file
-fln <- file.path("res", paste(paste(exp, "avg-wide", sep = "_"), ".csv", sep = ""))
+fln <- file.path("res", paste(paste(exp, "avg-wide_v4", sep = "_"), ".csv", sep = ""))
 write_csv(avg_multi_wide, fln)
 
 # reshape working memory task data

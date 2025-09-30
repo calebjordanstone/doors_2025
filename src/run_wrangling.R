@@ -75,8 +75,11 @@ for (sub in subs) {
   print(sub)
   
   sid <- as.numeric(substring(sub,5,7))
-  for (ses in sess) { 
-
+  for (ses in sess) {
+    
+    if (sid == 73 & ses == 'ses-learn') 
+      next # skipping ses-learn for sub73 because the file was missing data
+    
     train_type <- NA
     context_one_doors <- NA
     train_doors <- NA
