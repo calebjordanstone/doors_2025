@@ -2,6 +2,8 @@ library(ggplot2)
 library(data.table)
 library(ggthemes)
 library(cowplot)
+library(tidyverse)
+library(ggExtra)
 
 # load data files
 # avg_flex <- fread("res/exp-flex_avg-ss.csv")
@@ -277,6 +279,82 @@ png("exp-flex_test_LISAS.png",
     width=8, height=4, units='in', res=400)
 plot(fig)
 dev.off()
+
+
+## Find the % of time people go to each door from the correct context on the first click following a switch
+grp_data <- read_csv('res/exp-flex_evt.csv')
+door_counts <- grp_data %>% 
+  filter(switch==1 & lag(switch)==0 & door_cc==1 & ses==3) %>%
+  group_by(sub, train_type, ses, context, door) %>% 
+  summarise(counts=n()) %>% 
+  ungroup() %>% 
+  group_by(sub, context) %>% 
+  arrange(desc(counts), .by_group = T)
+door_counts %<>% 
+  group_by(sub, train_type, ses, context) %>%
+  mutate(door_order=row_number())
+door_counts_totals <- door_counts %>% 
+  group_by(sub, train_type, context) %>% 
+  summarise(total_clicks=sum(counts))
+door_counts <- inner_join(door_counts_totals, door_counts, 
+                          by=join_by(sub, train_type, context))
+door_counts %<>% 
+  mutate(counts_pcent=(counts/total_clicks)*100) %>%
+  group_by(sub, train_type, door_order) %>%
+  summarise(counts_pcent_av=mean(counts_pcent))
+door_counts$door_order <- as.factor(door_counts$door_order)
+fct_rev(door_counts$door_order)
+door_counts$train_type <- ifelse(door_counts$train_type==1, 'stable', 'variable')
+door_counts$train_type <- as.factor(door_counts$train_type)
+
+
+# test for difference from chance
+x <- door_counts %>% filter(door_order==1) %>% pull(counts_pcent_av)
+t.test(x, mu=50)
+
+p <- ggplot() +
+  geom_line(data=door_counts,
+            aes(x=door_order,
+                y=counts_pcent_av,
+                group=sub),
+            alpha=0.1) +
+  # position=position_jitter(width=0.05, seed=12345)) +
+  geom_point(data=door_counts,
+             aes(x=door_order,
+                 y=counts_pcent_av,
+                 color=train_type,
+                 # shape=train_type
+                 ),
+             alpha=1,
+             position=position_jitter(width=0.05, seed=12345)) +
+  scale_x_discrete(name='Door (most to least selected)',
+                   limits=rev,
+                   labels=c('4th', '3rd', '2nd', '1st')) + 
+  scale_y_continuous(name='Mean no. of correct clicks after switch (%)',
+                     breaks=c(0, 25, 50, 75, 100),
+                     labels=c('0', '25', '50', '75', '100'),
+                     limits=c(0, 100)) +
+  coord_flip() +
+  theme(text=element_text(family='sans',
+                          face='plain',
+                          color='black',
+                          size=18), 
+        legend.position='top',
+        panel.background = element_blank()) +
+  scale_color_tableau()
+
+p_m <- ggMarginal(p,
+                  type = 'density', 
+                  groupColour = T, 
+                  groupFill = T,
+                  margin='x')
+
+# save fig
+png("exp-flex_door_selections_bygrp.png",
+    width=6, height=4, units='in', res=400)
+plot(p)
+dev.off()
+
 
 ## plotting for exp-multi
 avg_multi <- fread("res/exp-multi_avg-ss.csv")

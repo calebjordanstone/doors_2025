@@ -15,13 +15,14 @@ source(file.path("src","get_transition_probabilities.R"))
 source(file.path("src","get_learned_doors.R"))
 source(file.path("src", "get_rts.R"))
 source(file.path("src", "join_multi_data.R"))
+source(file.path("src", "get_all_doors.R"))
 
 ### settings
 
 # !you will want to update these settings a lot during piloting, when the task code or the way you
 # test changes, or when you test participants on different subsets of the task phases
 version <- ''
-exp <- 'exp-flex' #'exp-multi' #'exp-flex'
+exp <- 'exp-multi' #'exp-multi' #'exp-flex'
 sess <- c("ses-learn","ses-learn2","ses-train","ses-test") # these sessions are common to 
 # both experiments so are the only 2 that need to be listed here. the sessions from the 
 # multitask experiment are dealt with in the code below
@@ -68,6 +69,8 @@ grp_multi <- data.frame(
 # grp_ons <- data.frame(
 #   sub = integer(), ses = integer(), t = integer(), context = integer(), on = integer()
 # )
+# create empty data frame to store door IDs
+all_doors <- data.frame()
 
 # for each subject and session, use the function 'get_data' to load their raw data and attach it to
 # our 'grp_data' data frame with one measurement (row) per event (click or hover)
@@ -77,13 +80,13 @@ for (sub in subs) {
   sid <- as.numeric(substring(sub,5,7))
   for (ses in sess) {
     
-    if (sid == 73 & ses == 'ses-learn') 
+    if (exp == 'exp-flex' & sid == 73 & ses == 'ses-learn') 
       next # skipping ses-learn for sub73 because the file was missing data
     
     train_type <- NA
     context_one_doors <- NA
     train_doors <- NA
-    
+
     if (ses == "ses-test") {
       train_type <- grp_data %>%
         filter(sub == sid, ses == 2) %>%
@@ -94,8 +97,9 @@ for (sub in subs) {
         filter(sub==sid,ses==ses,door_cc==1) %>% 
         select(door,context) %>% 
         unique()
-    }
-    
+      sub_doors <- get_all_doors(data_path, sub, ses)
+      all_doors <- rbind(all_doors, sub_doors)
+      }
       data <- get_data(data_path, exp, sub, ses, train_type, train_doors) # load and format raw data
       grp_data <- rbind(grp_data, data$resps) # add to the 'grp_data' data frame so we end up with all subjects and sessions in one spreadsheet
       if (grepl('exp-multi', exp) & grepl('ses-test', ses)){
@@ -109,9 +113,16 @@ grp_data <- grp_data %>% mutate(door_nc = case_when(door_cc==1 ~ 0, door_oc == 1
 # save the formatted data
 fnl <- file.path(project_path, "res", paste(paste(exp, "evt", sep = "_"), ".csv", sep = ""))
 write_csv(grp_data, fnl)
+grp_data <- read_csv('res/exp-multi_evt.csv')
+
+# compare first group of multi-tasking trials to rest
+grp_data <- grp_data %>% mutate(new_context=case_when(
+  ((ses==3 & switch==1) | (ses==3 & t==1)) ~ 1,
+  (ses==3 & switch==0) ~ 0,
+  .default=NA
+))
 
 ### extract accuracy and response time averages from event data
-
 # by trial
 res <- grp_data %>%
   group_by(sub, ses, subses, t, context, train_type) %>%
@@ -126,19 +137,14 @@ res <- grp_data %>%
     setting_slips = slips / n_oc
 ) %>% ungroup() 
 
-
 # get the different types of RTs, cleaning is exp dependent
-rt_dat <- get_rts(grp_data, exp, grp_multi)
+rt_dat <- get_rts(grp_data, exp, grp_multi, all_doors)
 # add the RTs to the res data frame
 res <- inner_join(res, rt_dat, by=c("sub", "ses", "subses", "switch", "t", "context", "train_type"))
 
-fnl <- file.path(project_path, "res", paste(paste(exp, "trl", sep = "_"), ".csv", sep = ""))
+fnl <- file.path(project_path, "res", paste(paste(exp, "trl_by_memgrp", sep = "_"), ".csv", sep = ""))
 write_csv(res, fnl)
-
-# by subject - for the data that the honours analysis will be applied to
-#   grouping by subsession
-
-# res <- read_csv(fnl)
+# res <- read_csv('res/exp-multi_trl.csv')
 
 # calculcate setting sticks and setting slips as proportion of setting errors
 res <- res %>% 
@@ -169,7 +175,7 @@ if (exp == 'exp-flex'){
     ungroup() %>%
     filter(ses != 1) %>%
     filter(ses != 10)
-  fnl <- file.path(project_path, "res", paste(paste(exp, "avg-ss", sep = "_"), ".csv", sep = ""))
+  fnl <- file.path(project_path, "res", paste(paste(exp, "avg-ss_by_subRT", sep = "_"), ".csv", sep = ""))
   write_csv(res_ss, fnl)
   
   #   just grouping by session
@@ -195,7 +201,7 @@ if (exp == 'exp-flex'){
     filter(ses != 1) %>%
     filter(ses != 10)
 
-  fnl <- file.path(project_path, "res", paste(paste(exp, "avg", sep = "_"), ".csv", sep = ""))
+  fnl <- file.path(project_path, "res", paste(paste(exp, "avg_by_subRT", sep = "_"), ".csv", sep = ""))
   write_csv(res_s, fnl)
 } else {
   
@@ -215,17 +221,17 @@ if (exp == 'exp-flex'){
            -starts_with('sticks_'),
            -starts_with('slips_')) %>%
     ungroup() %>%
-    filter(!(ses == 3 & switch == 1)) %>%
+    # filter(!(ses == 3 & switch == 1)) %>%
     filter(ses != 1)  %>%
     filter(ses != 10)
-    fnl <- file.path(project_path, "res", paste(paste(exp, "avg-ss", sep = "_"), ".csv", sep = ""))
+    fnl <- file.path(project_path, "res", paste(paste(exp, "avg-ss_by_subRT", sep = "_"), ".csv", sep = ""))
     write_csv(res_ss, fnl)
   
   
     res_s <- res %>%
       ungroup() %>% 
       select(!subses) %>%
-      group_by(sub, ses, switch, train_type, multi_trial, multi_cond) %>%
+      group_by(sub, ses, switch, train_type, multi_trial, mem_group) %>% # multi_cond
       summarise(
         across(
           .cols = where(is.numeric),
@@ -239,10 +245,10 @@ if (exp == 'exp-flex'){
              -starts_with('sticks_'),
              -starts_with('slips_')) %>%
       ungroup() %>%
-      filter(!(ses == 3 & switch == 1)) %>%
+      # filter(!(ses == 3 & switch == 1)) %>%
       filter(ses != 1)  %>%
       filter(ses != 10)
-    fnl <- file.path(project_path, "res", paste(paste(exp, "avg", sep = "_"), ".csv", sep = ""))
+    fnl <- file.path(project_path, "res", paste(paste(exp, "avg_by_memgrp2", sep = "_"), ".csv", sep = ""))
     write_csv(res_s, fnl)
 }
 
