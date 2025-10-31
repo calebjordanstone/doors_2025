@@ -38,6 +38,9 @@ avg_flex[, ':=' (LISAS_rt_fst_cor = rt_first_correct_mean + (setting_sticks_pe_m
                  LISAS_rt_sub_cor = rt_subs_correct_mean + (setting_slips_pe_mean*(rt_subs_correct_sd/setting_slips_pe_sd)))
 ][is.nan(LISAS_rt_fst_cor), LISAS_rt_fst_cor := rt_first_correct_mean # fill in missing LISAS scores with original values
 ][is.nan(LISAS_rt_sub_cor), LISAS_rt_sub_cor := rt_subs_correct_mean]
+# LISAS subs correct for training data
+avg_flex_ss[, ':=' (LISAS_rt_sub_cor = rt_subs_correct_mean + (setting_slips_pe_mean*(rt_subs_correct_sd/setting_slips_pe_sd)))
+][is.nan(LISAS_rt_sub_cor), LISAS_rt_sub_cor := rt_subs_correct_mean]
 
 # save output file
 fln <- file.path("res", paste(paste(exp, "avg", sep = "_"), ".csv", sep = ""))
@@ -55,7 +58,7 @@ avg_flex_ss[, ses := ifelse(ses==2, 'training', 'testing')]
 # reshape data frame
 avg_flex_wide_train <- dcast.data.table(avg_flex_ss, 
                                         sub + ses + train_type ~ subses, 
-                                        value.var = c('setting_errors_mean', 'general_errors_mean', 'rt_subs_correct_mean'), 
+                                        value.var = c('setting_errors_mean', 'general_errors_mean', 'rt_subs_correct_mean', 'LISAS_rt_sub_cor'), 
                                         subset = .(ses=='training' & switch=='non-switch'),
                                         fun.aggregate=mean) # long to wide for training session
 avg_flex_wide_test <- dcast.data.table(avg_flex, 
@@ -77,7 +80,7 @@ setnames(avg_flex_wide, "sub", "subID")
 # avg_flex_wide <- avg_flex_wide[, .SD, .SDcols = patterns(cols)]
 
 # save output file
-fln <- file.path("res", paste(paste(exp, "avg-wide_v2", sep = "_"), ".csv", sep = ""))
+fln <- file.path("res", paste(paste(exp, "avg-wide_v3", sep = "_"), ".csv", sep = ""))
 write_csv(avg_flex_wide, fln)
 
 

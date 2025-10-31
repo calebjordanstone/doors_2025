@@ -10,15 +10,15 @@ get_rts <- function(data, experiment, multi_data, doors){
               row_number() > 1  & door_cc == 1 & lag(door_cc) == 0 ~ 'post_error', .default=NA),
            prev_off = lag(off),
            prev_off = ifelse(row_number()==1, 0, prev_off),
-           rt = off-start) # %>% ## CS added the following code to break down subsequent_rts into different clicks (i.e., 1, 2, 3, 4); commented it out to look at first vs. rest of trials in a block
-  #   group_by(sub, ses, t, rt_idx) %>%
-  #   mutate(rt_idx_2 = paste0(rt_idx, "_", row_number())) %>%
-  #   ungroup()
-  # 
-  # data <- data %>% mutate(rt_idx = case_when(
-  #   rt_idx == 'subs_correct' ~ rt_idx_2,
-  #   .default=rt_idx))
-  
+           rt = off-start)  %>% ## CS added the following code to break down subsequent_rts into different clicks (i.e., 1, 2, 3, 4); commented it out to look at first vs. rest of trials in a block
+    group_by(sub, ses, t, rt_idx) %>%
+    mutate(rt_idx_2 = paste0(rt_idx, "_", row_number())) %>%
+    ungroup()
+
+  data <- data %>% mutate(rt_idx = case_when(
+    rt_idx == 'subs_correct' ~ rt_idx_2,
+    .default=rt_idx))
+
 
   # now depending on the experiment, filter rts by subject,  
   # now for each ses and switch condition, filter first correct and subs correct separately
@@ -58,12 +58,13 @@ get_rts <- function(data, experiment, multi_data, doors){
      rt_max <- 3 # anything more than this we believe is not real (KG eyeballed histogram of all data collected by July 4th 2025)
      sd_crit = 2.5
     
-     data <- data %>% filter(rt < rt_max) # rt_idx %in% c('first_correct', 'subs_correct_1', 'subs_correct_2', 'subs_correct_3', 'subs_correct_4', 'post_error')
+     data <- data %>% filter(rt < rt_max, rt_idx %in% c('first_correct', 'subs_correct_1', 'subs_correct_2', 'subs_correct_3', 'subs_correct_4', 'post_error'))
      
      # going to split the data into sessions 1 & 2 and treat them differently, 
      # as there are different conditions to filter
      # now create a summary of mu and sd rt for each rt type, for sessions 1 and 2
      learn_train <- data %>% filter(ses < 3)
+     learn_train$mem_group <- NA # add column to match test data
      learn_train_sum <- learn_train %>% group_by(sub, ses, switch, rt_idx) %>%
        summarise(
          mu_rt = mean(rt, na.rm=T), 
@@ -73,7 +74,6 @@ get_rts <- function(data, experiment, multi_data, doors){
      learn_train <- inner_join(learn_train, learn_train_sum %>% mutate(upper = mu_rt + (sd_crit*sd_rt)), 
                                by=c('sub', 'ses', 'switch', 'rt_idx')) %>%
        filter(rt <= upper) 
-     
      
      test <- data %>% filter(ses == 3)
      ## CS edits: add new variable to indicate if the trials within a memory group contain a new context
@@ -98,14 +98,13 @@ get_rts <- function(data, experiment, multi_data, doors){
                         multi_cond) %>%
         summarise(
           rt_first_correct = mean(rt[rt_idx == 'first_correct'], na.rm=T), 
-          rt_subs_correct = mean(rt[rt_idx == 'subs_correct'], na.rm=T), 
-          # rt_subs_correct_1 = mean(rt[rt_idx == 'subs_correct_1'], na.rm=T),
-          # rt_subs_correct_2 = mean(rt[rt_idx == 'subs_correct_2'], na.rm=T),
-          # rt_subs_correct_3 = mean(rt[rt_idx == 'subs_correct_3'], na.rm=T),
-          # rt_subs_correct_4 = mean(rt[rt_idx == 'subs_correct_4'], na.rm=T),
+          #rt_subs_correct = mean(rt[rt_idx == 'subs_correct'], na.rm=T), 
+          rt_subs_correct_1 = mean(rt[rt_idx == 'subs_correct_1'], na.rm=T),
+          rt_subs_correct_2 = mean(rt[rt_idx == 'subs_correct_2'], na.rm=T),
+          rt_subs_correct_3 = mean(rt[rt_idx == 'subs_correct_3'], na.rm=T),
+          rt_subs_correct_4 = mean(rt[rt_idx == 'subs_correct_4'], na.rm=T),
           rt_post_error = mean(rt[rt_idx == 'post_error'], na.rm=T),
           .groups='drop')
-    
   } 
   
   return(data)

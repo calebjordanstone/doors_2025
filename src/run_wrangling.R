@@ -142,7 +142,7 @@ rt_dat <- get_rts(grp_data, exp, grp_multi, all_doors)
 # add the RTs to the res data frame
 res <- inner_join(res, rt_dat, by=c("sub", "ses", "subses", "switch", "t", "context", "train_type"))
 
-fnl <- file.path(project_path, "res", paste(paste(exp, "trl_by_memgrp", sep = "_"), ".csv", sep = ""))
+fnl <- file.path(project_path, "res", paste(paste(exp, "trl_by_memgrp_by_subRT", sep = "_"), ".csv", sep = ""))
 write_csv(res, fnl)
 # res <- read_csv('res/exp-multi_trl.csv')
 
@@ -248,7 +248,7 @@ if (exp == 'exp-flex'){
       # filter(!(ses == 3 & switch == 1)) %>%
       filter(ses != 1)  %>%
       filter(ses != 10)
-    fnl <- file.path(project_path, "res", paste(paste(exp, "avg_by_memgrp2", sep = "_"), ".csv", sep = ""))
+    fnl <- file.path(project_path, "res", paste(paste(exp, "avg_by_memgrp_by_subRT", sep = "_"), ".csv", sep = ""))
     write_csv(res_s, fnl)
 }
 
