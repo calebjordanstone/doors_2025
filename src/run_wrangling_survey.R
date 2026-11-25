@@ -8,7 +8,7 @@ library(tidyverse)
 library(magrittr)
 
 ### settings
-exp <- 'exp-flex' #'exp-multi' #'exp-flex'
+exp <- 'exp-multi' #'exp-multi' #'exp-flex'
 
 ### set paths
 exp_path <- str_glue("data/{exp}/")
@@ -31,17 +31,24 @@ nonreactivity <- c('Q4','Q9','Q19','Q21','Q24','Q29','Q33')
 ### load survey data
 dt_ffmq <- fread(exp_path + 'FFMQ.csv')
 
-### clean data
+### clean data - Experiment Flex
+# dt_ffmq %<>% 
+#   rename(sub = SUBID_1) %>%
+#   rename_with(~ paste0("Q", seq(1,39)), starts_with("FFMQ")) %>%
+#   filter(sub != 37) %>%  # this participants data was overwritten, so excluding them
+#   mutate(sub = case_when(sub == 5595901 ~ 1, # these participants entered the wrong ID numbers, so adding the correct one back in
+#                          sub == 'z5446317' ~ 37,
+#                          sub == 5688031 ~ 60,
+#                          sub == 5692646 ~ 71,
+#                          .default = as.numeric(sub))) %>% 
+#   filter(sub %in% seq(1, 91)) %>% #Finished %in% c('True', 1) & 
+#   select(c(sub, Q1:Q39))
+
+### clean data - Experiment Multi
 dt_ffmq %<>% 
   rename(sub = SUBID_1) %>%
   rename_with(~ paste0("Q", seq(1,39)), starts_with("FFMQ")) %>%
-  filter(sub != 37) %>%  # this participants data was overwritten, so excluding them
-  mutate(sub = case_when(sub == 5595901 ~ 1, # these participants entered the wrong ID numbers, so adding the correct one back in
-                         sub == 'z5446317' ~ 37,
-                         sub == 5688031 ~ 60,
-                         sub == 5692646 ~ 71,
-                         .default = as.numeric(sub))) %>% 
-  filter(sub %in% seq(1, 91)) %>% #Finished %in% c('True', 1) & 
+  filter(sub %in% seq(1, 100)) %>% 
   select(c(sub, Q1:Q39))
 
 # score responses - if necessary convert text responses to numeric, 

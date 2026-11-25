@@ -64,5 +64,8 @@ join_multi_data <- function(data, multi_data, doors){
   print(paste0('Percent of trials where general errors on neither trials match WMT locations: ', pcnt))
   print(paste0('Mean pcnt of trials where general errors on neither trials match WMT locations: ', mean_pcnt))
   return(data)
+  
+  fnl <- file.path(project_path, "res", paste(paste(exp, "neither_door_selections", sep = "_"), ".csv", sep = ""))
+  write_csv(data_filt, fnl)
 }
 

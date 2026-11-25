@@ -15,7 +15,7 @@ library(ggExtra)
 # rename factor levels
 avg_flex[, subses := ifelse(subses==1, 'first', 'last')]
 avg_flex[, switch := ifelse(switch==0, 'non-switch', 'switch')]
-avg_flex[, train_type := ifelse(train_type==1, 'variable', 'stable')]
+avg_flex[, train_type := ifelse(train_type==1, 'stable', 'variable')]
 avg_flex[, ses := ifelse(ses==2, 'training', 'testing')]
 
 
